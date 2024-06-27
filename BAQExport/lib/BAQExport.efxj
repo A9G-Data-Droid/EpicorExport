@@ -1,0 +1,232 @@
+﻿{
+    "Mode": "Backup",
+    "Version": "4.2.300",
+    "SystemCode": "ERP",
+    "LibraryId": "BAQExport",
+    "Library": {
+        "OriginalID": "BAQExport",
+        "Description": "BAQExport Test",
+        "GlobalID": "a1d7ccbe-8428-45b4-a1bb-f5d2112d2fdc",
+        "EpicorVersion": "4.2.300",
+        "Revision": 83,
+        "Published": false,
+        "Private": false,
+        "Disabled": false,
+        "Mode": 0,
+        "AllowCustomCodeWidgets": true,
+        "AllowCustomCodeFunctions": true,
+        "DirectDBAccess": 0,
+        "OwnedByCompany": "MS67964",
+        "Owner": "KLINCECUM",
+        "Functions": [
+            {
+                "FunctionID": "BAQExportToCSVOrXML",
+                "Description": "Example of how to run a Dynamic Query Export and return the data as text. Optional to delete file. Optional to return byte data as a Base64 encoded string.",
+                "Kind": 2,
+                "RequireTransaction": false,
+                "SingleRowMode": false,
+                "Private": false,
+                "Disabled": false,
+                "Invalid": false,
+                "Thumbnail": null,
+                "Body": "{\"Code\":\"  //using System.Text;\\r\\n\\r\\n  \\r\\n  // Return data as requested\\r\\n  Func<string, string, string> ReturnTextOrBytes = (stringData, tOrB) =>\\r\\n  {\\r\\n      // default\\r\\n      string returnData = stringData;\\r\\n  \\r\\n      if(tOrB.ToUpper() == \\\"BYTES\\\")\\r\\n      {\\r\\n          returnData = Convert.ToBase64String( Encoding.UTF8.GetBytes(stringData) );\\r\\n      }\\r\\n\\r\\n      return returnData;\\r\\n  };\\r\\n  \\r\\n  try\\r\\n  {\\r\\n      // Make file name unique\\r\\n      Guid findGuid = Guid.NewGuid();\\r\\n      string findFilename = $\\\"{baqID}_{findGuid.ToString()}.{outputFormat.ToLower()}\\\";\\r\\n     \\r\\n      //Force headers     \\r\\n      if(showHeadersOnCSV == true && outputFormat.ToUpper() == \\\"CSV\\\") outputLabels = true;\\r\\n     \\r\\n     \\r\\n      CallService<DynamicQueryExportSvcContract>(dynamicQueryExport =>\\r\\n      {\\r\\n          DynamicQueryExportTableset dynamicQueryExportTableset = dynamicQueryExport.GetNewParameters();\\r\\n      \\r\\n          DynQueryExpParamRow dynQueryExpParamRow = dynamicQueryExportTableset.DynQueryExpParam.FirstOrDefault();\\r\\n          \\r\\n          dynQueryExpParamRow.QueryID = baqID;\\r\\n          dynQueryExpParamRow.ExportFormat = outputFormat.ToUpper();\\r\\n          dynQueryExpParamRow.ExportFilename =  findFilename;\\r\\n          dynQueryExpParamRow.TextDelim = textDelim;\\r\\n          dynQueryExpParamRow.OutputLabels = outputLabels; //CSV Only here\\r\\n      \\r\\n          dynamicQueryExport.RunDirect(dynamicQueryExportTableset);\\r\\n      });\\r\\n      \\r\\n\\r\\n      CallService<FileTransferSvcContract>(fileTransfer =>\\r\\n      {\\r\\n          byte[] csvDataBytes = fileTransfer.DownloadFile(Epicor.ServiceModel.Utilities.SpecialFolder.CompanyData, $\\\"Processes\\\\\\\\{Session.UserID}\\\\\\\\{findFilename}\\\");\\r\\n          \\r\\n          // Should we delete file?\\r\\n          if(deleteFile)\\r\\n          {\\r\\n              fileTransfer.FileDelete(Epicor.ServiceModel.Utilities.SpecialFolder.CompanyData, $\\\"Processes\\\\\\\\{Session.UserID}\\\\\\\\{findFilename}\\\");\\r\\n          }\\r\\n          \\r\\n          string tempData = System.Text.Encoding.UTF8.GetString(csvDataBytes);\\r\\n\\r\\n          //Make outputLabels work with XML\\r\\n          if(outputLabels == true && outputFormat.ToUpper() == \\\"XML\\\")\\r\\n          {\\r\\n              CallService<DynamicQuerySvcContract>(dynamicQuery =>\\r\\n              {\\r\\n                  DynamicQueryTableset dqTS = dynamicQuery.GetByID(baqID);\\r\\n                  \\r\\n                  Guid subQueryID = dqTS.QuerySubQuery.Where(x => x.Type == \\\"TopLevel\\\").FirstOrDefault().SubQueryID;\\r\\n                  \\r\\n                  foreach(QueryFieldRow qfr in dqTS.QueryField.Where(x => x.SubQueryID == subQueryID))\\r\\n                  {\\r\\n                      tempData = tempData.Replace($\\\"{qfr.TableID}_{qfr.FieldName}\\\",  System.Security.SecurityElement.Escape(qfr.FieldLabel).Replace(\\\" \\\", \\\"_\\\")  );\\r\\n                  }\\r\\n                  \\r\\n              });\\r\\n          }\\r\\n\\r\\n\\r\\n          if(showHeadersOnCSV == true && showColumnNamesInsteadofLabelsCSV == true && outputFormat.ToUpper() == \\\"CSV\\\" )\\r\\n          {\\r\\n              if(outputLabels == true)\\r\\n              tempData = tempData.Substring( tempData.IndexOf(Environment.NewLine) );\\r\\n              \\r\\n              CallService<DynamicQuerySvcContract>(dynamicQuery =>\\r\\n              {\\r\\n                  DynamicQueryTableset dqTS = dynamicQuery.GetByID(baqID);\\r\\n                  \\r\\n                  Guid subQueryID = dqTS.QuerySubQuery.Where(x => x.Type == \\\"TopLevel\\\").FirstOrDefault().SubQueryID;\\r\\n    \\r\\n                  \\r\\n                  string headerLine = String.Join(textDelim, dqTS.QueryField.Where(x => x.SubQueryID == subQueryID).Select(x => $\\\"\\\\\\\"{x.FieldName}\\\\\\\"\\\").ToArray());\\r\\n      \\r\\n                  tempData = headerLine + Environment.NewLine + tempData;                  \\r\\n\\r\\n              });\\r\\n          }\\r\\n\\r\\n          \\r\\n          if(showHeadersOnCSV == false && outputLabels == true)\\r\\n          {\\r\\n              tempData = tempData.Substring( tempData.IndexOf(Environment.NewLine) );\\r\\n          }\\r\\n\\r\\n\\r\\n          data = ReturnTextOrBytes(tempData, textOrBytes);\\r\\n          \\r\\n      });\\r\\n  }\\r\\n  catch (Exception ex)\\r\\n  {\\r\\n      message = ex.Message;\\r\\n  }\\r\\n   \",\"Usings\":\"using System.Text;\\r\\n\"}",
+                "FunctionSignature": [
+                    {
+                        "Response": false,
+                        "ParameterID": 1,
+                        "ArgumentName": "baqID",
+                        "Order": 1,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 2,
+                        "ArgumentName": "outputFormat",
+                        "Order": 2,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 3,
+                        "ArgumentName": "textDelim",
+                        "Order": 3,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 4,
+                        "ArgumentName": "outputLabels",
+                        "Order": 4,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 5,
+                        "ArgumentName": "deleteFile",
+                        "Order": 5,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 6,
+                        "ArgumentName": "textOrBytes",
+                        "Order": 6,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 7,
+                        "ArgumentName": "showHeadersOnCSV",
+                        "Order": 7,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 8,
+                        "ArgumentName": "showColumnNamesInsteadofLabelsCSV",
+                        "Order": 8,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": true,
+                        "ParameterID": 1,
+                        "ArgumentName": "data",
+                        "Order": 1,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": true,
+                        "ParameterID": 2,
+                        "ArgumentName": "message",
+                        "Order": 2,
+                        "DataType": "System.String",
+                        "Optional": false
+                    }
+                ]
+            },
+            {
+                "FunctionID": "BAQToCSVOrXML",
+                "Description": "Example of how to call a BAQ and return data as text in CSV or XML Format. Optional to return byte data as a Base64 encoded string.",
+                "Kind": 2,
+                "RequireTransaction": false,
+                "SingleRowMode": false,
+                "Private": false,
+                "Disabled": false,
+                "Invalid": false,
+                "Thumbnail": null,
+                "Body": "{\"Code\":\"  //using Ice.Lib.SharedUtilities.ImportExport;\\r\\n  //using System.IO;\\r\\n  //using System.Text;\\r\\n\\r\\n\\r\\n  // Return data as requested\\r\\n  Func<string, string, string> ReturnTextOrBytes = (stringData, tOrB) =>\\r\\n  {\\r\\n      // default\\r\\n      string returnData = stringData;\\r\\n  \\r\\n      if(tOrB.ToUpper() == \\\"BYTES\\\")\\r\\n      {\\r\\n          returnData = Convert.ToBase64String( Encoding.UTF8.GetBytes(stringData) );\\r\\n      }\\r\\n\\r\\n      return returnData;\\r\\n  };\\r\\n\\r\\n\\r\\n\\r\\n  try\\r\\n  {\\r\\n      DataSet ds = null;\\r\\n    \\r\\n      CallService<DynamicQuerySvcContract>(dq=>\\r\\n      {\\r\\n          ds = dq.ExecuteByID(baqID, new QueryExecutionTableset());\\r\\n      });\\r\\n    \\r\\n      DataTable dataTable = ds.Tables[0];\\r\\n      \\r\\n      // Output Format = XML\\r\\n      if(outputFormat.ToUpper() == \\\"XML\\\")\\r\\n      {\\r\\n          StringWriter writer = new StringWriter();\\r\\n      \\r\\n          dataTable.WriteXml(writer, XmlWriteMode.IgnoreSchema, false);\\r\\n\\r\\n          string tempData = writer.ToString();\\r\\n\\r\\n          //Make outputLabels work with XML\\r\\n          if(outputLabelsXML == true && outputFormat.ToUpper() == \\\"XML\\\")\\r\\n          {\\r\\n              CallService<DynamicQuerySvcContract>(dynamicQuery =>\\r\\n              {\\r\\n                  DynamicQueryTableset dqTS = dynamicQuery.GetByID(baqID);\\r\\n                  \\r\\n                  Guid subQueryID = dqTS.QuerySubQuery.Where(x => x.Type == \\\"TopLevel\\\").FirstOrDefault().SubQueryID;\\r\\n                  \\r\\n                  foreach(QueryFieldRow qfr in dqTS.QueryField.Where(x => x.SubQueryID == subQueryID))\\r\\n                  {\\r\\n                      tempData = tempData.Replace($\\\"{qfr.TableID}_{qfr.FieldName}\\\",  System.Security.SecurityElement.Escape(qfr.FieldLabel).Replace(\\\" \\\", \\\"_\\\")  );\\r\\n                  }\\r\\n                  \\r\\n              });\\r\\n          }\\r\\n\\r\\n          data = ReturnTextOrBytes(tempData, textOrBytes);\\r\\n          \\r\\n          return;\\r\\n      }\\r\\n\\r\\n\\r\\n\\r\\n\\r\\n      // Output Format = CSV (Default)\\r\\n      StringBuilder stringBuilder = new StringBuilder();\\r\\n      \\r\\n      string headerLine = \\\"\\\";\\r\\n      \\r\\n      if(showHeadersOnCSV == true && showColumnNamesInsteadofLabelsCSV == true)\\r\\n      {\\r\\n          string[] columnArray = dataTable.Columns.Cast<DataColumn>().Select(x => $\\\"\\\\\\\"{x.ColumnName}\\\\\\\"\\\").ToArray();\\r\\n          \\r\\n          headerLine = CsvWriter.GetCSVLine(columnArray);\\r\\n      }\\r\\n\\r\\n      if(showHeadersOnCSV == true && showColumnNamesInsteadofLabelsCSV == false)\\r\\n      {\\r\\n          CallService<DynamicQuerySvcContract>(dynamicQuery =>\\r\\n          {\\r\\n              DynamicQueryTableset dqTS = dynamicQuery.GetByID(baqID);\\r\\n              \\r\\n              Guid subQueryID = dqTS.QuerySubQuery.Where(x => x.Type == \\\"TopLevel\\\").FirstOrDefault().SubQueryID;\\r\\n\\r\\n              string[] columnArray = dqTS.QueryField.Where(x => x.SubQueryID == subQueryID).Select(x => $\\\"\\\\\\\"{x.FieldLabel}\\\\\\\"\\\").ToArray();\\r\\n    \\r\\n    \\r\\n              headerLine = CsvWriter.GetCSVLine(columnArray);\\r\\n\\r\\n          });\\r\\n      }\\r\\n\\r\\n      \\r\\n      if(showHeadersOnCSV == true)\\r\\n      {\\r\\n          stringBuilder.AppendLine(headerLine);\\r\\n      }\\r\\n\\r\\n\\r\\n\\r\\n      foreach(DataRow dataRow in dataTable.Rows)\\r\\n      {\\r\\n          string[] stringArray = dataRow.ItemArray.Select(x => x.ToString()).ToArray();\\r\\n          \\r\\n          stringBuilder.AppendLine(CsvWriter.GetCSVLine(stringArray));\\r\\n      }\\r\\n\\r\\n      // Text Delimiter is not a Comma - :(\\r\\n      if(textDelim != \\\",\\\")\\r\\n      {\\r\\n          string tempData = stringBuilder.ToString();\\r\\n          stringBuilder.Clear();\\r\\n      \\r\\n          using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(tempData)))\\r\\n          {\\r\\n              CsvReader reader = new CsvReader(ms);\\r\\n              \\r\\n              reader.Separator = ',';\\r\\n    \\r\\n              string[] line = null;\\r\\n              \\r\\n              do\\r\\n              {\\r\\n                  line = null;\\r\\n                  line = reader.GetCSVLine();\\r\\n                  if(line != null) stringBuilder.AppendLine( String.Join(textDelim, line) );\\r\\n              }            \\r\\n              while (line != null);\\r\\n          }\\r\\n      }\\r\\n      \\r\\n      data = ReturnTextOrBytes(stringBuilder.ToString(), textOrBytes);\\r\\n      \\r\\n  }\\r\\n  catch (Exception ex)\\r\\n  {\\r\\n      message = ex.Message;\\r\\n  }\\r\\n  \\r\\n  \\r\\n  \\r\\n  \\r\\n \",\"Usings\":\"using Ice.Lib.SharedUtilities.ImportExport;\\r\\nusing System.IO;\\r\\nusing System.Text;\\r\\n\\r\\n\"}",
+                "FunctionSignature": [
+                    {
+                        "Response": false,
+                        "ParameterID": 1,
+                        "ArgumentName": "baqID",
+                        "Order": 1,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 2,
+                        "ArgumentName": "outputFormat",
+                        "Order": 2,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 3,
+                        "ArgumentName": "textDelim",
+                        "Order": 3,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 4,
+                        "ArgumentName": "outputLabelsXML",
+                        "Order": 4,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 5,
+                        "ArgumentName": "textOrBytes",
+                        "Order": 5,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 6,
+                        "ArgumentName": "showHeadersOnCSV",
+                        "Order": 6,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": false,
+                        "ParameterID": 7,
+                        "ArgumentName": "showColumnNamesInsteadofLabelsCSV",
+                        "Order": 7,
+                        "DataType": "System.Boolean",
+                        "Optional": false
+                    },
+                    {
+                        "Response": true,
+                        "ParameterID": 1,
+                        "ArgumentName": "data",
+                        "Order": 1,
+                        "DataType": "System.String",
+                        "Optional": false
+                    },
+                    {
+                        "Response": true,
+                        "ParameterID": 2,
+                        "ArgumentName": "message",
+                        "Order": 2,
+                        "DataType": "System.String",
+                        "Optional": false
+                    }
+                ]
+            }
+        ],
+        "LibraryReferences": [
+            {
+                "ReferenceType": 0,
+                "ReferenceID": "Ice.Contracts.Lib.ServerPath.dll"
+            },
+            {
+                "ReferenceType": 0,
+                "ReferenceID": "Ice.Lib.SharedUtilities.dll"
+            },
+            {
+                "ReferenceType": 2,
+                "ReferenceID": "ICE:BO:DynamicQuery"
+            },
+            {
+                "ReferenceType": 2,
+                "ReferenceID": "ICE:Lib:FileTransfer"
+            },
+            {
+                "ReferenceType": 2,
+                "ReferenceID": "ICE:Proc:DynamicQueryExport"
+            }
+        ],
+        "LibraryMappings": [
+            {
+                "Company": "MS67964",
+                "Allowed": true
+            }
+        ]
+    }
+}
